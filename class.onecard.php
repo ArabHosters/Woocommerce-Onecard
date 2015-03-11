@@ -3,8 +3,9 @@
   Plugin Name: One Card
   Plugin URI: arabhosters.com
   Description: OneCard Payment extension for Woo-Commerece
-  Version: 1.0
-  Author: Nedal
+  Version: 1.2
+  Author: Arabhosters
+  Author URI: arabhosters.com
  */
 
 /*
@@ -89,7 +90,7 @@ function init_onecard_gateway_class() {
             ?>
             <h3><?php _e('OneCard', 'woocommerce'); ?></h3>
 
-                <?php if ($this->is_valid_for_use()) : ?>
+            <?php if ($this->is_valid_for_use()) : ?>
 
                 <table class="form-table">
                     <?php
@@ -177,28 +178,24 @@ function init_onecard_gateway_class() {
             // Onecard Args
             $onecard_args = array(
                 'OneCard_MerchID' => $this->merchant_id,
-                'OneCard_Amount' => number_format($order->get_total(), 2, '.', ''),
+                'OneCard_Amount' => $order->order_total, //number_format($order->get_total(), 2, '.', ''),
                 'OneCard_Currency' => get_woocommerce_currency(),
                 // Order key + ID
                 'OneCard_TransID' => $transaction_id,
                 'OneCard_Field1' => serialize(array($order_id, $order->order_key)),
                 'OneCard_ReturnURL' => add_query_arg('utm_nooverride', '1', $this->get_return_url($order)),
-                'OneCard_Timein' => $order_id,
-                    //'OneCard_HashKey'	=> $this->notify_url,
+                'OneCard_Timein' => current_time('timestamp')
             );
-
-            $date = new DateTime();
-            $date_timein = $date->getTimestamp();
-            $onecard_args['OneCard_Timein'] = $date_timein;
 
             // sending encrypted hashkey
             $string_to_hash = $this->merchant_id;
             $string_to_hash .= $transaction_id;
-            $string_to_hash .= $order->get_total();
+            $string_to_hash .= $order->order_total;
             $string_to_hash .= get_woocommerce_currency();
-            $string_to_hash .= $date_timein;
+            $string_to_hash .= current_time('timestamp');
             $string_to_hash .= $this->trans_key;
 
+            //MD5 (OneCard_MerchID + OneCard_TransID + OneCard_Amount + OneCard_Currency + OneCard_Timein + OneCard_TransKey)
             // get a md5 hash of the string
             $hash_key = md5($string_to_hash);
 
@@ -213,9 +210,7 @@ function init_onecard_gateway_class() {
             $onecard_args['OneCard_MProd'] = implode(', ', $item_names);
 
 
-            $onecard_args = apply_filters('woocommerce_onecard_args', $onecard_args);
-
-            return $onecard_args;
+            return apply_filters('woocommerce_onecard_args', $onecard_args);
         }
 
         /**
@@ -226,7 +221,6 @@ function init_onecard_gateway_class() {
          * @return string
          */
         function generate_onecard_form($order_id) {
-            global $woocommerce;
 
             $order = new WC_Order($order_id);
 
@@ -244,8 +238,10 @@ function init_onecard_gateway_class() {
                 $onecard_args_array[] = '<input type="hidden" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" />';
             }
 
-            $woocommerce->add_inline_js('
-			jQuery("body").block({
+            return '<form action="' . esc_url($onecard_adr) . '" method="post" id="onecard_payment_form" target="_top">
+				' . implode('', $onecard_args_array) . '
+                                    <script type="text/javascript">
+                                    jQuery("body").block({
 					message: "' . esc_js(__('Thank you for your order. We are now redirecting you to Onecard to make payment.', 'woocommerce')) . '",
 					baseZ: 99999,
 					overlayCSS:
@@ -265,10 +261,7 @@ function init_onecard_gateway_class() {
 				    }
 				});
 			jQuery("#submit_onecard_payment_form").click();
-		');
-
-            return '<form action="' . esc_url($onecard_adr) . '" method="post" id="onecard_payment_form" target="_top">
-				' . implode('', $onecard_args_array) . '
+                                    </script>
 				<input type="submit" class="button alt" id="submit_onecard_payment_form" value="' . __('Pay via Onecard', 'woocommerce') . '" /> <a class="button cancel" href="' . esc_url($order->get_cancel_order_url()) . '">' . __('Cancel order &amp; restore cart', 'woocommerce') . '</a>
 			</form>';
         }
@@ -307,7 +300,7 @@ function init_onecard_gateway_class() {
          * Check Onecard IPN validity
          * */
         function check_ipn_request_is_valid() {
-            global $woocommerce;
+
             $transaction_id = $this->invoice_prefix . ltrim($order->get_order_number(), '#');
 
             $string_to_hash = $this->merchant_id;
@@ -392,6 +385,11 @@ function init_onecard_gateway_class() {
 
                         $order->add_order_note(__('IPN payment completed', 'woocommerce'));
                         $order->payment_complete();
+
+                        $woocommerce->cart->empty_cart();
+
+                        $redirect_url = add_query_arg('key', $order->order_key, add_query_arg('order', $order->id, get_permalink(get_option('woocommerce_thanks_page_id'))));
+                        wp_redirect($redirect_url);
 
                         break;
                     default :
