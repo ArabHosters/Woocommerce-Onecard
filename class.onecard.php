@@ -56,6 +56,7 @@ function init_onecard_gateway_class() {
 
 
             // Actions
+            add_action('init', array(&$this, 'check_onecard_response'));
             add_action('valid-onecard-standard-ipn-request', array($this, 'successful_request'));
             add_action('woocommerce_receipt_onecard', array($this, 'receipt_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -347,6 +348,28 @@ function init_onecard_gateway_class() {
         }
 
         /**
+         * Check for onecard server callback value
+         * */
+        function check_onecard_response() {
+            if (isset($_GET['pm_onecard_response']) && $_GET['pm_onecard_response'] == 'pm_onecard'):
+                @ob_clean();
+                $_POST = stripslashes_deep($_POST);
+
+                if ($this->check_ipn_request_is_valid()) {
+
+                    header('HTTP/1.1 200 OK');
+
+                    do_action("valid-onecard-standard-ipn-request", $_POST);
+
+                    exit;
+                } else {
+                    wp_die("Onecard Request Failure");
+                }
+
+            endif;
+        }
+
+        /**
          * Successful Payment!
          *
          * @access public
@@ -383,7 +406,7 @@ function init_onecard_gateway_class() {
                             exit;
                         }
 
-                        $order->add_order_note(__('IPN payment completed', 'woocommerce'));
+                        $order->add_order_note(__('OneCard payment completed', 'woocommerce'));
                         $order->payment_complete();
 
                         $woocommerce->cart->empty_cart();
