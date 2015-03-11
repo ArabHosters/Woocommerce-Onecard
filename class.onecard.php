@@ -3,7 +3,7 @@
   Plugin Name: One Card
   Plugin URI: arabhosters.com
   Description: OneCard Payment extension for Woo-Commerece
-  Version: 1.3
+  Version: 1.3.2
   Author: Arabhosters
   Author URI: arabhosters.com
  */
@@ -56,7 +56,7 @@ function init_onecard_gateway_class() {
 
 
             // Actions
-            add_action('init', array(&$this, 'check_onecard_response'));
+            add_action('init', array($this, 'check_onecard_response'));
             add_action('valid-onecard-standard-ipn-request', array($this, 'successful_request'));
             add_action('woocommerce_receipt_onecard', array($this, 'receipt_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -184,7 +184,7 @@ function init_onecard_gateway_class() {
                 // Order key + ID
                 'OneCard_TransID' => $transaction_id,
                 'OneCard_Field1' => serialize(array($order_id, $order->order_key)),
-                'OneCard_ReturnURL' => add_query_arg(array('pm_onecard_response'=>'pm_onecard','utm_nooverride'=>'1'), $this->get_return_url($order)),
+                'OneCard_ReturnURL' => add_query_arg(array('pm_onecard_response'=>'pm_onecard','utm_nooverride'=>'1'), trailingslashit(home_url())),
                 'OneCard_Timein' => current_time('timestamp')
             );
 
@@ -351,6 +351,7 @@ function init_onecard_gateway_class() {
          * Check for onecard server callback value
          * */
         function check_onecard_response() {
+            print_r($_POST);
             if (isset($_GET['pm_onecard_response']) && $_GET['pm_onecard_response'] == 'pm_onecard'):
                 @ob_clean();
                 $_POST = stripslashes_deep($_POST);
