@@ -351,7 +351,6 @@ function init_onecard_gateway_class() {
          * Check for onecard server callback value
          * */
         function check_onecard_response() {
-            print_r($_POST);
             if (isset($_GET['pm_onecard_response']) && $_GET['pm_onecard_response'] == 'pm_onecard'):
                 @ob_clean();
                 $_POST = stripslashes_deep($_POST);
